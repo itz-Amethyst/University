@@ -1,4 +1,6 @@
 import os
+from typing import Union
+
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Protection, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
@@ -89,67 +91,96 @@ def save_changes(wb, excel_file):
         print(f"Failed to save the file: {e}")
         print("There is a chance that this file is in use.")
 
-def add_product(file_name, name, description, stock, price):
-    """Add a new product with the current date."""
-    sheet_name = name
+
+def validate_sheet_exists( file_name: str , sheet_name: str, flag: bool = False ) -> Union[bool , str]:
+    """Validate if a sheet exists in the given workbook."""
+    if not os.path.exists(file_name):
+        msg = f"Excel file '{file_name}' does not exist."
+        print(msg)
+        return False , msg
     wb = prepare_workbook(file_name)
-    if sheet_name in wb.sheetnames:
-        print(f"Product sheet '{sheet_name}' already exists.")
-        return
-    ws = wb.create_sheet(title=sheet_name, index=0)  # Add the sheet as the first sheet
-    ws.append(["Transaction Date", "Name", "Description", "Stock", "Price"])
+    if flag:
+        if sheet_name in wb.sheetnames:
+            msg = f"Product sheet '{sheet_name}' already exist."
+            print(msg)
+            return False , msg
+        else:
+            return True, ""
+    if sheet_name not in wb.sheetnames:
+        msg = f"Product sheet '{sheet_name}' does not exist."
+        print(msg)
+        return False , msg
+    return True , ""
+
+
+def add_product( file_name , name , description , stock , price ) -> Union[bool , str]:
+    """Add a new product with the current date."""
+    sheet_name = name.lower()
+    is_valid , msg = validate_sheet_exists(file_name , sheet_name, flag = True)
+    if not is_valid:
+        return False , msg
+
+    wb = prepare_workbook(file_name)
+    ws = wb.create_sheet(title = sheet_name , index = 0)  # Add the sheet as the first sheet
+    ws.append(["Transaction Date" , "Name" , "Description" , "Stock" , "Price"])
 
     # Apply header styles and data validation for the product sheet
     apply_header_styles(ws)
-    apply_data_validation(ws, "Product")
+    apply_data_validation(ws , "Product")
 
-    ws.append([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, description, stock, price])
-    save_changes(wb, file_name)
-    print(f"Product sheet '{sheet_name}' added successfully.")
+    ws.append([datetime.now().strftime("%Y-%m-%d %H:%M:%S") , name , description , stock , price])
+    save_changes(wb , file_name)
+    msg = f"Product sheet '{sheet_name}' added successfully."
+    print(msg)
+    return True , msg
 
-def edit_product(file_name, name=None, description=None, stock=None, price=None):
+
+def edit_product( file_name , name = None , description = None , stock = None , price = None ) -> Union[bool , str]:
     """Edit an existing product by adding a new record with updated data."""
-    sheet_name = name
-    if not os.path.exists(file_name):
-        print(f"Excel file '{file_name}' does not exist.")
-        return
+    sheet_name = name.lower() if name else None
+    is_valid , msg = validate_sheet_exists(file_name , sheet_name)
+    if not is_valid:
+        return False , msg
+
     wb = prepare_workbook(file_name)
-    if sheet_name not in wb.sheetnames:
-        print(f"Product sheet '{sheet_name}' does not exist.")
-        return
-    if sheet_name not in wb.sheetnames:
-        print(f"Product sheet '{sheet_name}' does not exist.")
-        return
     ws = wb[sheet_name]
-    
+
     # Retrieve the last row's values
     last_row = ws.max_row
-    last_record = {ws.cell(row=1, column=col).value: ws.cell(row=last_row, column=col).value for col in range(1, ws.max_column + 1)}
-    
+    last_record = {ws.cell(row = 1 , column = col).value: ws.cell(row = last_row , column = col).value for col in
+                   range(1 , ws.max_column + 1)}
+
     # Prepare the new record with existing values and update with provided arguments
     new_record = {
-        "Transaction Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "Name": name if name is not None else last_record["Name"],
-        "Description": description if description is not None else last_record["Description"],
-        "Stock": stock if stock is not None else last_record["Stock"],
+        "Transaction Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S") ,
+        "Name": name if name is not None else last_record["Name"] ,
+        "Description": description if description is not None else last_record["Description"] ,
+        "Stock": stock if stock is not None else last_record["Stock"] ,
         "Price": price if price is not None else last_record["Price"]
     }
-    
-    ws.append([new_record["Transaction Date"], new_record["Name"], new_record["Description"], new_record["Stock"], new_record['Price']])
-    if name and name != last_record['Name']:
-        ws.title = name
-    save_changes(wb, file_name)
-    print(f"Product sheet '{sheet_name}' updated successfully.")
 
-def delete_product_sheet(file_name, sheet_name):
+    ws.append([new_record["Transaction Date"] , new_record["Name"] , new_record["Description"] , new_record["Stock"] ,
+               new_record['Price']])
+    if name and name.lower() != last_record['Name'].lower():  # Check for case-insensitive name change
+        ws.title = name
+    save_changes(wb , file_name)
+    msg = f"Product sheet '{sheet_name}' updated successfully."
+    print(msg)
+    return True , msg
+
+
+def delete_product_sheet( file_name , sheet_name ) -> Union[bool , str]:
     """Delete a product sheet."""
+    is_valid , msg = validate_sheet_exists(file_name , sheet_name)
+    if not is_valid:
+        return False , msg
+
     wb = prepare_workbook(file_name)
-    if sheet_name not in wb.sheetnames:
-        print(f"Product sheet '{sheet_name}' does not exist.")
-        return
     del wb[sheet_name]
-    save_changes(wb, file_name)
-    print(f"Product sheet '{sheet_name}' deleted successfully.")
+    save_changes(wb , file_name)
+    msg = f"Product sheet '{sheet_name}' deleted successfully."
+    print(msg)
+    return True , msg
 
 # Example usage
 create_excel_file()

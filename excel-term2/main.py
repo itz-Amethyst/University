@@ -3,16 +3,13 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Protection, PatternFill
 from openpyxl.worksheet.datavalidation import DataValidation
 from datetime import datetime
+from utils import data_folder, excel_file_path
 
-EXCEL_FILE = 'products.xlsx'
 
 def create_excel_file():
     """Create an Excel file in the 'datas' folder if it doesn't exist."""
-    data_folder = 'datas'
     if not os.path.exists(data_folder):
         os.makedirs(data_folder)
-
-    excel_file_path = os.path.join(data_folder, EXCEL_FILE)
 
     if not os.path.exists(excel_file_path):
         wb = Workbook()
@@ -69,6 +66,7 @@ def apply_data_validation(ws, sheet_type):
         dv_int.errorTitle = "Invalid Integer"
         ws.add_data_validation(dv_int)
         dv_int.add(f"D2:D1000")  # Stock
+        dv_int.add(f"E2:E1000")  # price
 
         dv_date = DataValidation(type="date", formula1="1900-01-01", showErrorMessage=True)
         dv_date.error = "Please enter a valid date."
@@ -91,29 +89,34 @@ def save_changes(wb, excel_file):
         print(f"Failed to save the file: {e}")
         print("There is a chance that this file is in use.")
 
-def add_product(file_name, sheet_name, name, description, stock):
+def add_product(file_name, name, description, stock, price):
     """Add a new product with the current date."""
+    sheet_name = name
     wb = prepare_workbook(file_name)
     if sheet_name in wb.sheetnames:
         print(f"Product sheet '{sheet_name}' already exists.")
         return
     ws = wb.create_sheet(title=sheet_name, index=0)  # Add the sheet as the first sheet
-    ws.append(["Transaction Date", "Name", "Description", "Stock"])
+    ws.append(["Transaction Date", "Name", "Description", "Stock", "Price"])
 
     # Apply header styles and data validation for the product sheet
     apply_header_styles(ws)
     apply_data_validation(ws, "Product")
 
-    ws.append([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, description, stock])
+    ws.append([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), name, description, stock, price])
     save_changes(wb, file_name)
     print(f"Product sheet '{sheet_name}' added successfully.")
 
-def edit_product(file_name, sheet_name, name=None, description=None, stock=None):
+def edit_product(file_name, name=None, description=None, stock=None, price=None):
     """Edit an existing product by adding a new record with updated data."""
+    sheet_name = name
     if not os.path.exists(file_name):
         print(f"Excel file '{file_name}' does not exist.")
         return
     wb = prepare_workbook(file_name)
+    if sheet_name not in wb.sheetnames:
+        print(f"Product sheet '{sheet_name}' does not exist.")
+        return
     if sheet_name not in wb.sheetnames:
         print(f"Product sheet '{sheet_name}' does not exist.")
         return
@@ -128,10 +131,13 @@ def edit_product(file_name, sheet_name, name=None, description=None, stock=None)
         "Transaction Date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "Name": name if name is not None else last_record["Name"],
         "Description": description if description is not None else last_record["Description"],
-        "Stock": stock if stock is not None else last_record["Stock"]
+        "Stock": stock if stock is not None else last_record["Stock"],
+        "Price": price if price is not None else last_record["Price"]
     }
     
-    ws.append([new_record["Transaction Date"], new_record["Name"], new_record["Description"], new_record["Stock"]])
+    ws.append([new_record["Transaction Date"], new_record["Name"], new_record["Description"], new_record["Stock"], new_record['Price']])
+    if name and name != last_record['Name']:
+        ws.title = name
     save_changes(wb, file_name)
     print(f"Product sheet '{sheet_name}' updated successfully.")
 
@@ -147,9 +153,9 @@ def delete_product_sheet(file_name, sheet_name):
 
 # Example usage
 create_excel_file()
-add_product(EXCEL_FILE, "ProductA", "ProductA Name", "Initial stock", 100)
-edit_product(EXCEL_FILE, "ProductA", description="Stock reduced", stock=80)
-edit_product(EXCEL_FILE, "ProductA", name="Updated ProductA Name", stock=60)
-edit_product(EXCEL_FILE, "ProductA", description="Final update")
-add_product(EXCEL_FILE, "ProductMilad", "ProductMilad Name", "Initial stock", 100)
-delete_product_sheet(EXCEL_FILE, "ProductA")
+add_product(excel_file_path,  "ProductA Name", "Initial stock", 100, 2000)
+edit_product(excel_file_path, "ProductA", description="Stock reduced", stock=80)
+edit_product(excel_file_path, name="Updated ProductA Name", stock=60)
+edit_product(excel_file_path, "ProductA", description="Final update")
+add_product(excel_file_path,"ProductMilad Name", "Initial stock", 100, 200)
+delete_product_sheet(excel_file_path, "ProductA")

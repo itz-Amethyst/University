@@ -13,6 +13,8 @@ class ProductApp:
         self.root.title("Product Management")
         self.root.configure(background="gray")
 
+        self.current_sheet_index = 0  # To keep track of the current sheet index
+
         self.setup_ui()
         self.load_data()
 
@@ -51,67 +53,102 @@ class ProductApp:
         self.count_entry.grid(row=3, column=1, pady=5)
 
         # Treeview
-        self.tree = ttk.Treeview(self.root, columns=("Name", "Price", "Description", "Count"), show='headings')
-        self.tree.heading("Name", text="Name")
-        self.tree.heading("Price", text="Price")
-        self.tree.heading("Description", text="Description")
-        self.tree.heading("Count", text="Count")
+        self.tree = ttk.Treeview(self.root, show='headings')
         self.tree.grid(row=0, column=2, padx=10, pady=10, sticky=tk.NSEW)
+
+        # Navigation Buttons
+        nav_frame = tk.Frame(self.root, bg="gray")
+        nav_frame.grid(row=1, column=2, pady=10)
+
+        prev_button = tk.Button(nav_frame, text="Previous", command=self.prev_sheet)
+        prev_button.grid(row=0, column=0, padx=5)
+
+        next_button = tk.Button(nav_frame, text="Next", command=self.next_sheet)
+        next_button.grid(row=0, column=1, padx=5)
 
         self.root.grid_columnconfigure(2, weight=1)
         self.root.grid_rowconfigure(0, weight=1)
 
-    def handle_product( self, mode ):
+    def handle_product(self, mode):
         name = self.name_entry.get()
         description = self.description_entry.get()
         stock = self.count_entry.get()
         price = self.price_entry.get()
 
-        match mode:
-            case "add":
-                if name and description and stock and price:
-                    try:
-                        add_product(excel_file_path, name, description, int(stock), int(price))
-                        messagebox.showinfo("Success" , "Product operation completed successfully.")
-                    except Exception as e:
-                        messagebox.showerror("Error" , f"Failed to perform product operation: {e}")
-            case "edit":
-                try:
-                    edit_product(excel_file_path , name , description , stock , price)
-                except Exception as e:
-                    messagebox.showerror("Error" , f"Failed to perform product operation: {e}")
+        try:
+            match mode:
+                case "add":
+                    if name and description and stock and price:
+                        success , msg = add_product(EXCEL_FILE , name , description , int(stock) , int(price))
+                        if success:
+                            messagebox.showinfo("Success" , "Product operation completed successfully.")
+                        else:
+                            messagebox.showerror("Error" , msg)
+                    else:
+                        messagebox.showerror("Error" , "Please fill in all fields for adding a product.")
+                case "edit":
+                    if name:
+                        # Tuple
+                        success, msg = edit_product(EXCEL_FILE , name , description , stock , price)
+                        if success:
+                            messagebox.showinfo("Success" , "Product operation completed successfully.")
+                        else:
+                            messagebox.showerror("Error" , msg)
+                case "delete":
+                    if name:
+                        success, msg = delete_product_sheet(EXCEL_FILE , name)
+                        if success:
+                            messagebox.showinfo("Success" , "Product sheet deleted successfully.")
+                        else:
+                            messagebox.showinfo("Fail" , msg)
+                    else:
+                        messagebox.showerror("Warning" , "Please enter the product name for deleting.")
+        except Exception as e:
+            messagebox.showerror("Error" , f"Failed to perform product operation: {e}")
 
-            case "delete":
-                if name:
-                    try:
-                        delete_product_sheet(excel_file_path , name)
-                        messagebox.showinfo("Success" , "Product sheet deleted successfully.")
-                    except Exception as e:
-                        messagebox.showerror("Error" , f"Failed to delete product sheet: {e}")
-                else:
-                    messagebox.showerror("Warn" , "Please enter product name.")
-            case _:
-                messagebox.showerror("Error" , "Invalid Operation mode.")
+        self.load_data()
 
     def load_data(self):
         if os.path.exists(EXCEL_FILE):
-            wb = load_workbook(EXCEL_FILE)
-            for sheet in wb.sheetnames:
-                if sheet != "Information":
-                    ws = wb[sheet]
-                    for row in ws.iter_rows(min_row=2, values_only=True):
-                        self.tree.insert("", "end", values=row)
+            self.workbook = load_workbook(EXCEL_FILE)
+            self.sheets = self.workbook.sheetnames
+            self.display_sheet(self.sheets[self.current_sheet_index])
         else:
             messagebox.showerror("Error", f"Excel file '{EXCEL_FILE}' not found!")
 
+    def display_sheet(self, sheet_name):
+        for item in self.tree.get_children():
+            self.tree.delete(item)
+
+        ws = self.workbook[sheet_name]
+        columns = [cell.value for cell in ws[1]]
+        self.tree["columns"] = columns
+        for col in columns:
+            self.tree.heading(col, text=col)
+            self.tree.column(col, width=100)
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            self.tree.insert("", "end", values=row)
+
+    def next_sheet(self):
+        if self.current_sheet_index < len(self.sheets) - 1:
+            self.current_sheet_index += 1
+            self.display_sheet(self.sheets[self.current_sheet_index])
+
+    def prev_sheet(self):
+        if self.current_sheet_index > 0:
+            self.current_sheet_index -= 1
+            self.display_sheet(self.sheets[self.current_sheet_index])
+
     def add_product(self):
-        self.handle_product(mode = "add")
+        self.handle_product(mode="add")
 
     def update_product(self):
-        self.handle_product(mode = "edit")
+        self.handle_product(mode="edit")
 
     def delete_product_gui(self):
-        self.handle_product(mode = "delete")
+        self.handle_product(mode="delete")
+
 
 if __name__ == "__main__":
     root = tk.Tk()

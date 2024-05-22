@@ -8,82 +8,67 @@ from datetime import datetime
 from utils import data_folder, excel_file_path
 
 
-def create_excel_file():
-    """Create an Excel file in the 'datas' folder if it doesn't exist."""
+def create_excel_file() -> None:
+    """Create an Excel file in given path."""
     if not os.path.exists(data_folder):
         os.makedirs(data_folder)
 
     if not os.path.exists(excel_file_path):
         wb = Workbook()
         ws = wb.active
-        ws.title = "Information"
-        ws.append(["Address", "Established Year", "City", "Country"])
 
-        # Apply header styles and data validation for the "Information" sheet
+        # Apply header styles and data validations
         apply_header_styles(ws)
-        apply_data_validation(ws, "Information")
+        apply_data_validation(ws)
 
         wb.save(excel_file_path)
         print(f"Created new Excel file: {excel_file_path}")
     else:
         print(f"Excel file '{excel_file_path}' already exists.")
 
-def apply_header_styles(ws):
+def apply_header_styles(ws) -> None:
     """Apply styles to the header row."""
     header_fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")
     for col in range(1, ws.max_column + 1):
         cell = ws.cell(row=1, column=col)
-        cell.protection = Protection(locked=True)
+        #! Requires a researching
+        # cell.protection = Protection(locked=True)
         cell.fill = header_fill
 
+    #!f
     # ws.protection.sheet = True
+def apply_data_validation(ws) -> None:
+    """Apply data validation to the sheets """
 
-def apply_data_validation(ws, sheet_type):
-    """Apply data validation to the sheet based on its type."""
-    if sheet_type == "Information":
-        dv_int = DataValidation(type="whole", operator="between", formula1=0, formula2=9999, showErrorMessage=True)
-        dv_int.error = "Please enter a valid year."
-        dv_int.errorTitle = "Invalid Year"
-        ws.add_data_validation(dv_int)
-        dv_int.add(f"B2:B1048576")
+    #! Formula1 : less than 255 char
+    dv_text = DataValidation(type="textLength", operator="lessThan", formula1="255", showErrorMessage=True)
+    dv_text.error = "Please enter a valid text."
+    dv_text.errorTitle = "Invalid Text"
+    ws.add_data_validation(dv_text)
+    dv_text.add(f"B2:B1000")  # Name
+    dv_text.add(f"C2:C1000")  # Description
 
-        dv_text = DataValidation(type="textLength", operator="lessThan", formula1="255", showErrorMessage=True)
-        dv_text.error = "Please enter a valid text."
-        dv_text.errorTitle = "Invalid Text"
-        ws.add_data_validation(dv_text)
-        dv_text.add(f"A2:A100")  # Address
-        dv_text.add(f"C2:C100")  # City
-        dv_text.add(f"D2:D100")  # Country
+    dv_int = DataValidation(type="whole", operator="greaterThan", formula1=0, showErrorMessage=True)
+    dv_int.error = "Please enter a valid integer."
+    dv_int.errorTitle = "Invalid Integer"
+    ws.add_data_validation(dv_int)
+    dv_int.add(f"D2:D1000")  # Stock
+    dv_int.add(f"E2:E1000")  # price
 
-    elif sheet_type == "Product":
-        dv_text = DataValidation(type="textLength", operator="lessThan", formula1="255", showErrorMessage=True)
-        dv_text.error = "Please enter a valid text."
-        dv_text.errorTitle = "Invalid Text"
-        ws.add_data_validation(dv_text)
-        dv_text.add(f"B2:B1000")  # Name
-        dv_text.add(f"C2:C1000")  # Description
-
-        dv_int = DataValidation(type="whole", operator="greaterThan", formula1=0, showErrorMessage=True)
-        dv_int.error = "Please enter a valid integer."
-        dv_int.errorTitle = "Invalid Integer"
-        ws.add_data_validation(dv_int)
-        dv_int.add(f"D2:D1000")  # Stock
-        dv_int.add(f"E2:E1000")  # price
-
-        dv_date = DataValidation(type="date", formula1="1900-01-01", showErrorMessage=True)
-        dv_date.error = "Please enter a valid date."
-        dv_date.errorTitle = "Invalid Date"
-        ws.add_data_validation(dv_date)
-        dv_date.add(f"A2:A1000")
+    dv_date = DataValidation(type="date", formula1="1900-01-01", showErrorMessage=True)
+    dv_date.error = "Please enter a valid date."
+    dv_date.errorTitle = "Invalid Date"
+    ws.add_data_validation(dv_date)
+    dv_date.add(f"A2:A1000")
 
 
-def prepare_workbook(excel_file):
+def prepare_workbook(excel_file: str):
     """Load the workbook or create if it doesn't exist."""
     if not os.path.exists(excel_file):
         create_excel_file()
     return load_workbook(excel_file)
 
-def save_changes(wb, excel_file):
+def save_changes(wb, excel_file: str) -> None:
     try:
         wb.save(excel_file)
         print('Saved Successfully')
@@ -92,7 +77,7 @@ def save_changes(wb, excel_file):
         print("There is a chance that this file is in use.")
 
 
-def validate_sheet_exists( file_name: str , sheet_name: str, flag: bool = False ) -> Union[bool , str]:
+def validate_sheet_exists(file_name: str , sheet_name: str, flag: bool = False) -> Union[bool , str]:
     """Validate if a sheet exists in the given workbook."""
     if not os.path.exists(file_name):
         msg = f"Excel file '{file_name}' does not exist."
@@ -113,7 +98,7 @@ def validate_sheet_exists( file_name: str , sheet_name: str, flag: bool = False 
     return True , ""
 
 
-def add_product( file_name , name , description , stock , price ) -> Union[bool , str]:
+def add_product( file_name: str , name: str , description: str , stock: int , price: int ) -> Union[bool , str]:
     """Add a new product with the current date."""
     sheet_name = name.lower()
     is_valid , msg = validate_sheet_exists(file_name , sheet_name, flag = True)
@@ -126,7 +111,7 @@ def add_product( file_name , name , description , stock , price ) -> Union[bool 
 
     # Apply header styles and data validation for the product sheet
     apply_header_styles(ws)
-    apply_data_validation(ws , "Product")
+    apply_data_validation(ws)
 
     ws.append([datetime.now().strftime("%Y-%m-%d %H:%M:%S") , name , description , stock , price])
     save_changes(wb , file_name)
@@ -135,7 +120,7 @@ def add_product( file_name , name , description , stock , price ) -> Union[bool 
     return True , msg
 
 
-def edit_product( file_name , name = None , description = None , stock = None , price = None ) -> Union[bool , str]:
+def edit_product( file_name: str , name = None , description = None , stock = None , price = None ) -> Union[bool , str]:
     """Edit an existing product by adding a new record with updated data."""
     sheet_name = name.lower() if name else None
     is_valid , msg = validate_sheet_exists(file_name , sheet_name)
@@ -145,10 +130,9 @@ def edit_product( file_name , name = None , description = None , stock = None , 
     wb = prepare_workbook(file_name)
     ws = wb[sheet_name]
 
-    # Retrieve the last row's values
+    # Retrieve the last row's values in case if given parameters were null
     last_row = ws.max_row
-    last_record = {ws.cell(row = 1 , column = col).value: ws.cell(row = last_row , column = col).value for col in
-                   range(1 , ws.max_column + 1)}
+    last_record = {ws.cell(row = 1 , column = col).value: ws.cell(row = last_row , column = col).value for col in range(1 , ws.max_column + 1)}
 
     # Prepare the new record with existing values and update with provided arguments
     new_record = {
@@ -159,8 +143,7 @@ def edit_product( file_name , name = None , description = None , stock = None , 
         "Price": price if price is not None else last_record["Price"]
     }
 
-    ws.append([new_record["Transaction Date"] , new_record["Name"] , new_record["Description"] , new_record["Stock"] ,
-               new_record['Price']])
+    ws.append([new_record["Transaction Date"] , new_record["Name"] , new_record["Description"] , new_record["Stock"] , new_record['Price']])
     if name and name.lower() != last_record['Name'].lower():  # Check for case-insensitive name change
         ws.title = name
     save_changes(wb , file_name)
@@ -169,7 +152,7 @@ def edit_product( file_name , name = None , description = None , stock = None , 
     return True , msg
 
 
-def delete_product_sheet( file_name , sheet_name ) -> Union[bool , str]:
+def delete_product_sheet( file_name: str , sheet_name: str ) -> Union[bool , str]:
     """Delete a product sheet."""
     is_valid , msg = validate_sheet_exists(file_name , sheet_name)
     if not is_valid:
@@ -185,7 +168,7 @@ def delete_product_sheet( file_name , sheet_name ) -> Union[bool , str]:
 # Example usage
 create_excel_file()
 add_product(excel_file_path,  "ProductA Name", "Initial stock", 100, 2000)
-edit_product(excel_file_path, "ProductA", description="Stock reduced", stock=80)
+edit_product(excel_file_path, "test12", description="Stock reduced", stock=80, price = 1551)
 edit_product(excel_file_path, name="Updated ProductA Name", stock=60)
 edit_product(excel_file_path, "ProductA", description="Final update")
 add_product(excel_file_path,"ProductMilad Name", "Initial stock", 100, 200)

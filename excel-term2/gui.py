@@ -182,7 +182,6 @@ class ProductApp:
         else:
             prices = [row[4] for row in data]  # 5th column is price
             transaction_dates = [row[0] for row in data]
-            print(transaction_dates)
 
             ax.plot(transaction_dates, prices, marker='o')
             ax.set_xlabel('Transaction Date')
@@ -263,7 +262,7 @@ class ProductApp:
 
 
     def next_sheet(self):
-        if self.current_sheet_index < len(self.sheets) - 1:
+        if self.current_sheet_index < len(self.sheets) - 2:
             self.current_sheet_index += 1
             self.display_sheet(self.sheets[self.current_sheet_index])
 

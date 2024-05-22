@@ -1,5 +1,5 @@
 import tkinter as tk
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkinter import ttk, messagebox
 from openpyxl import load_workbook
 import os
@@ -8,7 +8,6 @@ from utils import excel_file_path
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-EXCEL_FILE = 'datas/products.xlsx'
 
 class ProductApp:
     def __init__(self, root):
@@ -17,7 +16,7 @@ class ProductApp:
         self.root.configure(background="gray")
         self.root.state('zoomed')
 
-        self.current_sheet_index = 0  # To keep track of the current sheet index
+        self.current_sheet_index = 0  # current sheet index
 
         self.setup_ui()
         self.load_data()
@@ -73,6 +72,11 @@ class ProductApp:
         update_chart_button = tk.Button(input_frame , text = "Update Chart" , command = self.update_chart_with_filter)
         update_chart_button.grid(row = 7 , columnspan = 2 , pady = 5)
 
+        # Checkbox for applying filter on all sheets
+        self.apply_all_sheets_var = tk.BooleanVar()
+        apply_all_sheets_checkbox = tk.Checkbutton(input_frame , text = "Apply filter on all sheets" ,variable = self.apply_all_sheets_var)
+        apply_all_sheets_checkbox.grid(row = 8 , columnspan = 2 , pady = 5)
+
         # Treeview
         self.tree = ttk.Treeview(self.root, show='headings')
         self.tree.grid(row=0, column=2, padx=10, pady=10, sticky=tk.NSEW)
@@ -100,11 +104,18 @@ class ProductApp:
         stock = self.count_entry.get()
         price = self.price_entry.get()
 
+        # To set the name to last record of the sheet for edit operation
+        if not name and mode == "edit":
+            ws = self.workbook[self.sheets[self.current_sheet_index]]
+            last_row = ws.max_row
+            last_record_name = ws.cell(row = last_row , column = 2).value  # Assuming the name is in the 2nd column
+            name = last_record_name
+
         try:
             match mode:
                 case "add":
                     if name and description and stock and price:
-                        success , msg = add_product(EXCEL_FILE , name , description , int(stock) , int(price))
+                        success , msg = add_product(excel_file_path , name , description , int(stock) , int(price))
                         if success:
                             messagebox.showinfo("Success" , "Product operation completed successfully.")
                         else:
@@ -114,14 +125,14 @@ class ProductApp:
                 case "edit":
                     if name:
                         # Tuple
-                        success, msg = edit_product(EXCEL_FILE , name , description , stock , price)
+                        success, msg = edit_product(excel_file_path , name , description , int(stock) , int(price))
                         if success:
                             messagebox.showinfo("Success" , "Product operation completed successfully.")
                         else:
                             messagebox.showerror("Error" , msg)
                 case "delete":
                     if name:
-                        success, msg = delete_product_sheet(EXCEL_FILE , name)
+                        success, msg = delete_product_sheet(excel_file_path , name)
                         if success:
                             messagebox.showinfo("Success" , "Product sheet deleted successfully.")
                         else:
@@ -134,12 +145,12 @@ class ProductApp:
         self.load_data()
 
     def load_data(self):
-        if os.path.exists(EXCEL_FILE):
-            self.workbook = load_workbook(EXCEL_FILE)
+        if os.path.exists(excel_file_path):
+            self.workbook = load_workbook(excel_file_path)
             self.sheets = self.workbook.sheetnames
             self.display_sheet(self.sheets[self.current_sheet_index])
         else:
-            messagebox.showerror("Error", f"Excel file '{EXCEL_FILE}' not found!")
+            messagebox.showerror("Error", f"Excel file '{excel_file_path}' not found!")
 
     def display_sheet(self, sheet_name):
         for item in self.tree.get_children():
@@ -185,6 +196,7 @@ class ProductApp:
         plt.close(fig)  # Close the figure to free up memory
 
     def update_chart_with_filter(self):
+
         try:
             start_datetime_str = self.start_date_entry.get()
             end_datetime_str = self.end_date_entry.get()
@@ -203,17 +215,51 @@ class ProductApp:
             messagebox.showerror("Error", "Please enter valid datetimes in the format YYYY-MM-DD HH:MM:SS.")
             return
 
-        ws = self.workbook[self.sheets[self.current_sheet_index]]
-        data = [row for row in ws.iter_rows(min_row=2, values_only=True)]
 
-        data = []
+        if self.apply_all_sheets_var.get():
+            # Destroy previous chart canvas
+            if self.chart_canvas:
+                self.chart_canvas.get_tk_widget().destroy()
 
-        for row in ws.iter_rows(min_row = 2 , values_only = True):
-            transaction_date = datetime.strptime(row[0] ,"%Y-%m-%d %H:%M:%S").date()  # Adjust according to your date format
-            if start_date <= transaction_date <= end_date:
-                data.append(row)
+            all_data = {}
+            for sheet_name in self.sheets:
+                ws = self.workbook[sheet_name]
+                data = [row for row in ws.iter_rows(min_row = 2 , values_only = True)]
+                changes_in_price = []
+                prev_price = None
+                for row in data:
+                    transaction_date = datetime.strptime(row[0] , "%Y-%m-%d %H:%M:%S").date()
+                    if start_date <= transaction_date <= end_date:
+                        price = row[4]  # 5th is the price
+                        if prev_price is not None:
+                            change = price - prev_price
+                            changes_in_price.append(change)
+                        prev_price = price
+                all_data[sheet_name] = changes_in_price
 
-        self.update_chart(data)
+            #chart
+            fig , ax = plt.subplots(figsize = (7 , 8))
+            for sheet_name , changes_in_price in all_data.items():
+                ax.plot(changes_in_price , label = sheet_name)
+            ax.set_xlabel('Time')
+            ax.set_ylabel('Change in Price')
+            ax.set_title('Change in Price Over Time for All Sheets')
+            # Panel guide on the right side
+            ax.legend()
+            plt.xticks(rotation = 45)
+            self.chart_canvas = FigureCanvasTkAgg(fig , master = self.chart_frame)
+            self.chart_canvas.draw()
+            self.chart_canvas.get_tk_widget().pack(fill = tk.BOTH , expand = True)
+            plt.close(fig)  # freeing up the memory problem
+        else:
+            ws = self.workbook[self.sheets[self.current_sheet_index]]
+            data = [row for row in ws.iter_rows(min_row = 2 , values_only = True)]
+            filtered_data = []
+            for row in data:
+                transaction_date = datetime.strptime(row[0] , "%Y-%m-%d %H:%M:%S").date()
+                if start_date <= transaction_date <= end_date:
+                    filtered_data.append(row)
+            self.update_chart(filtered_data)
 
 
     def next_sheet(self):

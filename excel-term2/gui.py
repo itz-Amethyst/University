@@ -125,7 +125,7 @@ class ProductApp:
                 case "edit":
                     if name:
                         # Tuple
-                        success, msg = edit_product(excel_file_path , name , description , int(stock) , int(price))
+                        success, msg = edit_product(excel_file_path, self.current_sheet_index , name , description , int(stock) , int(price))
                         if success:
                             messagebox.showinfo("Success" , "Product operation completed successfully.")
                         else:

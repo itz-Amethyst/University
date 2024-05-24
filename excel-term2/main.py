@@ -84,6 +84,7 @@ def validate_sheet_exists(file_name: str , sheet_name: str, flag: bool = False) 
         print(msg)
         return False , msg
     wb = prepare_workbook(file_name)
+    # For add operation
     if flag:
         if sheet_name in wb.sheetnames:
             msg = f"Product sheet '{sheet_name}' already exist."
@@ -120,15 +121,16 @@ def add_product( file_name: str , name: str , description: str , stock: int , pr
     return True , msg
 
 
-def edit_product( file_name: str , name = None , description = None , stock = None , price = None ) -> Union[bool , str]:
+def edit_product( file_name: str , current_sheet_index:int , name = None , description = None , stock = None , price = None ) -> Union[bool , str]:
     """Edit an existing product by adding a new record with updated data."""
-    sheet_name = name.lower() if name else None
+    wb = prepare_workbook(file_name)
+    ws = wb.worksheets[current_sheet_index]
+    
+    sheet_name = ws.title
     is_valid , msg = validate_sheet_exists(file_name , sheet_name)
     if not is_valid:
         return False , msg
-
-    wb = prepare_workbook(file_name)
-    ws = wb[sheet_name]
+    
 
     # Retrieve the last row's values in case if given parameters were null
     last_row = ws.max_row
@@ -168,8 +170,8 @@ def delete_product_sheet( file_name: str , sheet_name: str ) -> Union[bool , str
 # Example usage
 create_excel_file()
 add_product(excel_file_path,  "ProductA Name", "Initial stock", 100, 2000)
-edit_product(excel_file_path, "test12", description="Stock reduced", stock=80, price = 1551)
-edit_product(excel_file_path, name="Updated ProductA Name", stock=60)
-edit_product(excel_file_path, "ProductA", description="Final update")
+edit_product(excel_file_path,2, "test12", description="Stock reduced", stock=80, price = 1551)
+edit_product(excel_file_path,2, name="Updated ProductA Name", stock=60)
+edit_product(excel_file_path,1, "ProductA", description="Final update")
 add_product(excel_file_path,"ProductMilad Name", "Initial stock", 100, 200)
 delete_product_sheet(excel_file_path, "ProductA")

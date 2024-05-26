@@ -167,11 +167,41 @@ def delete_product_sheet( file_name: str , sheet_name: str ) -> Union[bool , str
     print(msg)
     return True , msg
 
+def delete_last_row(file_name: str , sheet_index: int ) -> Union[bool, str]:
+    "Delete the last row of data from given index."
+    try:
+        wb = prepare_workbook(file_name)
+        sheet_names = wb.sheetnames
+
+        if sheet_index < 0:
+            return False, "Invalid Sheet Index."
+        
+        ws = wb[sheet_names[sheet_index]]
+
+        last_row = ws.max_row
+
+        # Validation for header 
+        if last_row > 1:
+            # To update the title of worksheet
+            new_title = ws.cell(row=last_row - 1, column=1).value
+            if new_title:
+                ws.title = str(new_title)
+            ws.delete_rows(last_row)
+            save_changes(wb, file_name)
+            return True, f"Last row of {sheet_names[sheet_index]} deleted successfully."
+        else:
+            return False, "Cannot delete the header."
+        
+    except Exception as e:
+        return False, f"Failed to delete last row: {e}"
+
 # Example usage
 create_excel_file()
+#! 1
 add_product(excel_file_path,  "ProductA Name", "Initial stock", 100, 2000)
-edit_product(excel_file_path,2, "test12", description="Stock reduced", stock=80, price = 1551)
-edit_product(excel_file_path,2, name="Updated ProductA Name", stock=60)
-edit_product(excel_file_path,1, "ProductA", description="Final update")
 add_product(excel_file_path,"ProductMilad Name", "Initial stock", 100, 200)
-delete_product_sheet(excel_file_path, "ProductA")
+#? 2
+# edit_product(excel_file_path,1, "test12", description="Stock reduced", stock=80, price = 1551)
+# edit_product(excel_file_path,1, name="Updated ProductA Name", stock=60)
+# edit_product(excel_file_path,1, "ProductA", description="Final update")
+# delete_product_sheet(excel_file_path, "test12")

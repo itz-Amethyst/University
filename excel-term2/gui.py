@@ -3,7 +3,7 @@ from datetime import datetime
 from tkinter import ttk, messagebox
 from openpyxl import load_workbook
 import os
-from main import delete_product_sheet, add_product, edit_product
+from main import delete_last_row, delete_product_sheet, add_product, edit_product
 from utils import excel_file_path
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -97,6 +97,10 @@ class ProductApp:
         self.chart_frame = tk.Frame(self.root, bg = "gray")
         self.chart_frame.grid(row=0, column=3, padx=10, pady=10, sticky=tk.NSEW)
         self.chart_canvas = None
+
+        # Delete last row
+        delete_last_row_button = tk.Button(button_frame, text="Delete Last Row", command=self.delete_last_row_gui)
+        delete_last_row_button.pack(fill=tk.X, pady=5)
 
     def handle_product(self, mode):
         name = self.name_entry.get()
@@ -279,6 +283,14 @@ class ProductApp:
 
     def delete_product_gui(self):
         self.handle_product(mode="delete")
+
+    def delete_last_row_gui(self):
+        success, msg = delete_last_row(excel_file_path, self.current_sheet_index)
+        if success:
+            messagebox.showinfo("Success", msg)
+        else:
+            messagebox.showerror("Error", msg)
+        self.load_data()
 
 
 if __name__ == "__main__":
